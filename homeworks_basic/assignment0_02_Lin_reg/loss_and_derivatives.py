@@ -33,7 +33,7 @@ class LossAndDerivatives:
         """
 
         # YOUR CODE HERE    
-        return 
+        return np.mean(np.abs(X.dot(w) - Y))
 
     @staticmethod
     def l2_reg(w):
@@ -47,7 +47,7 @@ class LossAndDerivatives:
         """
         
         # YOUR CODE HERE
-        return 
+        return np.sum(np.square(w))
 
     @staticmethod
     def l1_reg(w):
@@ -61,7 +61,7 @@ class LossAndDerivatives:
         """
 
         # YOUR CODE HERE
-        return 
+        return np.sum(np.abs(w))
 
     @staticmethod
     def no_reg(w):
@@ -87,7 +87,12 @@ class LossAndDerivatives:
         """
 
         # YOUR CODE HERE
-        return 
+        if len(w.shape) > 1 :
+            target_dimentionality = w.shape[1]
+        else:
+            target_dimentionality = 1
+        
+        return -2 * (X.T).dot(Y - X.dot(w)) / (X.shape[0] * target_dimentionality)
 
     @staticmethod
     def mae_derivative(X, Y, w):
@@ -106,7 +111,11 @@ class LossAndDerivatives:
         """
 
         # YOUR CODE HERE
-        return 
+        if len(w.shape) > 1 :
+            target_dimentionality = w.shape[1]
+        else:
+            target_dimentionality = 1
+        return -(X.T).dot(np.sign(Y - X.dot(w))) / (X.shape[0] * target_dimentionality)
 
     @staticmethod
     def l2_reg_derivative(w):
@@ -119,7 +128,7 @@ class LossAndDerivatives:
         """
 
         # YOUR CODE HERE
-        return 
+        return 2 * w
 
     @staticmethod
     def l1_reg_derivative(w):
@@ -133,7 +142,7 @@ class LossAndDerivatives:
         """
 
         # YOUR CODE HERE
-        return 
+        return np.sign(w)
 
     @staticmethod
     def no_reg_derivative(w):

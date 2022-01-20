@@ -18,7 +18,7 @@ def entropy(y):
     """
     EPS = 0.0005
 
-    # YOUR CODE HERE
+    return -(y.mean(axis=0) * np.log2(y.mean(axis=0) + EPS)).sum()
     
     return 0.
     
@@ -36,10 +36,8 @@ def gini(y):
     float
         Gini impurity of the provided subset
     """
-
-    # YOUR CODE HERE
     
-    return 0.
+    return 1 - (y.mean(axis=0) ** 2).sum()
     
 def variance(y):
     """
@@ -56,9 +54,7 @@ def variance(y):
         Variance of the provided target vector
     """
     
-    # YOUR CODE HERE
-    
-    return 0.
+    return np.var(y)
 
 def mad_median(y):
     """
@@ -75,10 +71,8 @@ def mad_median(y):
     float
         Mean absolute deviation from the median in the provided vector
     """
-
-    # YOUR CODE HERE
     
-    return 0.
+    return (np.abs(y - np.mean(y))).mean()
 
 
 def one_hot_encode(n_classes, y):
@@ -135,13 +129,10 @@ class DecisionTree(BaseEstimator):
         ----------
         feature_index : int
             Index of feature to make split with
-
         threshold : float
             Threshold value to perform split
-
         X_subset : np.array of type float with shape (n_objects, n_features)
             Feature matrix representing the selected subset
-
         y_subset : np.array of type float with shape (n_objects, n_classes) in classification 
                    (n_objects, 1) in regression 
             One-hot representation of class labels for corresponding subset
@@ -154,8 +145,9 @@ class DecisionTree(BaseEstimator):
             Part of the providev subset where selected feature x^j >= threshold
         """
 
-        # YOUR CODE HERE
-        
+        X_left, X_right = X_subset[X_subset[:, feature_index] < threshold], X_subset[X_subset[:, feature_index] >= threshold]
+        y_left, y_right = y_subset[X_subset[:, feature_index] < threshold], y_subset[X_subset[:, feature_index] >= threshold]
+
         return (X_left, y_left), (X_right, y_right)
     
     def make_split_only_y(self, feature_index, threshold, X_subset, y_subset):
@@ -166,13 +158,10 @@ class DecisionTree(BaseEstimator):
         ----------
         feature_index : int
             Index of feature to make split with
-
         threshold : float
             Threshold value to perform split
-
         X_subset : np.array of type float with shape (n_objects, n_features)
             Feature matrix representing the selected subset
-
         y_subset : np.array of type float with shape (n_objects, n_classes) in classification 
                    (n_objects, 1) in regression 
             One-hot representation of class labels for corresponding subset
@@ -182,13 +171,12 @@ class DecisionTree(BaseEstimator):
         y_left : np.array of type float with shape (n_objects_left, n_classes) in classification 
                    (n_objects, 1) in regression 
             Part of the provided subset where selected feature x^j < threshold
-
         y_right : np.array of type float with shape (n_objects_right, n_classes) in classification 
                    (n_objects, 1) in regression 
             Part of the provided subset where selected feature x^j >= threshold
         """
-
-        # YOUR CODE HERE
+        
+        y_left, y_right = y_subset[X_subset[:, feature_index] < threshold], y_subset[X_subset[:, feature_index] >= threshold]
         
         return y_left, y_right
 
@@ -200,7 +188,6 @@ class DecisionTree(BaseEstimator):
         ----------
         X_subset : np.array of type float with shape (n_objects, n_features)
             Feature matrix representing the selected subset
-
         y_subset : np.array of type float with shape (n_objects, n_classes) in classification 
                    (n_objects, 1) in regression 
             One-hot representation of class labels or target values for corresponding subset
@@ -209,15 +196,26 @@ class DecisionTree(BaseEstimator):
         -------
         feature_index : int
             Index of feature to make split with
-
         threshold : float
             Threshold value to perform split
-
         """
-        # YOUR CODE HERE
+        feature_index = 0 
+        threshold = .0
+        Q_min = np.inf
+
+        for i in range(X_subset.shape[1]):
+            for j in np.unique(X_subset[:, i]):
+                y_left, y_right = self.make_split_only_y(i, j, X_subset, y_subset)
+                Q = (y_left.shape[0] / X_subset.shape[0] * self.all_criterions[self.criterion_name][0](y_left) + 
+                    y_right.shape[0] / X_subset.shape[0] * self.all_criterions[self.criterion_name][0](y_right))
+                if Q < Q_min:
+                    feature_index = i
+                    threshold = j
+                    Q_min = Q
+
         return feature_index, threshold
     
-    def make_tree(self, X_subset, y_subset):
+    def make_tree(self, X_subset, y_subset, depth):
         """
         Recursively builds the tree
         
@@ -225,7 +223,6 @@ class DecisionTree(BaseEstimator):
         ----------
         X_subset : np.array of type float with shape (n_objects, n_features)
             Feature matrix representing the selected subset
-
         y_subset : np.array of type float with shape (n_objects, n_classes) in classification 
                    (n_objects, 1) in regression 
             One-hot representation of class labels or target values for corresponding subset
@@ -236,9 +233,15 @@ class DecisionTree(BaseEstimator):
             Node of the root of the fitted tree
         """
 
-        # YOUR CODE HERE
+        if X_subset.shape[0] > self.min_samples_split and depth < self.max_depth:
+            new_node = Node(*self.choose_best_split(X_subset, y_subset))
+            (X_left, y_left), (X_right, y_right) = self.make_split(new_node.feature_index, new_node.value, X_subset, y_subset)
+            new_node.left_child, new_node.right_child = self.make_tree(X_left, y_left, depth + 1), self.make_tree(X_right, y_right, depth + 1)
+            return new_node
+        else:
+            return y_subset.mean(axis=0)
+
         
-        return new_node
         
     def fit(self, X, y):
         """
@@ -248,7 +251,6 @@ class DecisionTree(BaseEstimator):
         ----------
         X : np.array of type float with shape (n_objects, n_features)
             Feature matrix representing the data to train on
-
         y : np.array of type int with shape (n_objects, 1) in classification 
                    of type float with shape (n_objects, 1) in regression 
             Column vector of class labels in classification or target values in regression
@@ -261,7 +263,7 @@ class DecisionTree(BaseEstimator):
                 self.n_classes = len(np.unique(y))
             y = one_hot_encode(self.n_classes, y)
 
-        self.root = self.make_tree(X, y)
+        self.root = self.make_tree(X, y, 0)
     
     def predict(self, X):
         """
@@ -271,7 +273,6 @@ class DecisionTree(BaseEstimator):
         ----------
         X : np.array of type float with shape (n_objects, n_features)
             Feature matrix representing the data the predictions should be provided for
-
         Returns
         -------
         y_predicted : np.array of type int with shape (n_objects, 1) in classification 
@@ -279,9 +280,22 @@ class DecisionTree(BaseEstimator):
             Column vector of class labels in classification or target values in regression
         
         """
+        y_predicted = np.zeros(X.shape[0])
 
-        # YOUR CODE HERE
-        
+        for i in range(X.shape[0]):
+                current_node = self.root
+
+                while type(current_node) is Node:
+                    if X[i, current_node.feature_index] < current_node.value:
+                        current_node = current_node.left_child
+                    else:
+                        current_node = current_node.right_child
+
+                if self.all_criterions[self.criterion_name][1]:
+                    y_predicted[i] = np.argmax(current_node)
+                else:
+                    y_predicted[i] = current_node
+
         return y_predicted
         
     def predict_proba(self, X):
@@ -293,7 +307,6 @@ class DecisionTree(BaseEstimator):
         ----------
         X : np.array of type float with shape (n_objects, n_features)
             Feature matrix representing the data the predictions should be provided for
-
         Returns
         -------
         y_predicted_probs : np.array of type float with shape (n_objects, n_classes)
@@ -302,6 +315,17 @@ class DecisionTree(BaseEstimator):
         """
         assert self.classification, 'Available only for classification problem'
 
-        # YOUR CODE HERE
+        y_predicted_probs = np.zeros((X.shape[0], self.n_classes))
+
+        for i in range(X.shape[0]):
+                current_node = self.root
+
+                while type(current_node) is Node:
+                    if X[i, current_node.feature_index] < current_node.value:
+                        current_node = current_node.left_child
+                    else:
+                        current_node = current_node.right_child
+
+                y_predicted_probs[i] = current_node
         
         return y_predicted_probs
